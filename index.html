@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EPA-Einschätzung">
+<title>EPA-Einschätzung</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f2f2f7; color: #1c1c1e; padding-bottom: 100px; }
+.wrap { max-width: 480px; margin: 0 auto; }
+
+.header { background: #7DBA00; color: white; padding: 16px 20px; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 1.1rem; font-weight: 700; }
+.header p  { font-size: .8rem; opacity: .9; margin-top: 2px; }
+
+.card { background: white; border-radius: 12px; margin: 12px auto; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); max-width: 480px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: .75rem; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+.field input { width: 100%; padding: 10px 12px; border: 1.5px solid #e5e5ea; border-radius: 8px; font-size: 1rem; font-family: inherit; }
+.field input:focus { outline: none; border-color: #7DBA00; }
+
+.phase-row { display: flex; gap: 10px; margin-bottom: 4px; }
+.phase-btn { flex: 1; padding: 12px 8px; border: 2px solid #e5e5ea; border-radius: 10px; background: #f9f9f9; font-size: .9rem; font-weight: 600; cursor: pointer; text-align: center; transition: all .2s; }
+.phase-btn.vor-active  { border-color: #7DBA00; background: rgba(125,186,0,.1); color: #4a8c00; }
+.phase-btn.nach-active { border-color: #FA9E0D; background: rgba(250,158,13,.1); color: #c07800; }
+
+.progress { margin: 0 auto 8px; max-width: 480px; padding: 0 16px; }
+.progress-bar { height: 6px; background: #e5e5ea; border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: #7DBA00; border-radius: 3px; transition: width .3s; }
+.progress-text { font-size: .75rem; color: #8e8e93; text-align: center; margin-top: 4px; }
+
+.epa-card { background: white; border-radius: 12px; margin: 8px auto; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 2px solid transparent; transition: border-color .2s; max-width: 480px; }
+.epa-card.done { border-color: #7DBA00; }
+.epa-title { padding: 12px 14px; background: #f9f9f9; border-bottom: 1px solid #f0f0f0; }
+.epa-num  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #7DBA00; margin-bottom: 2px; }
+.epa-name { font-size: .95rem; font-weight: 700; }
+.epa-desc { font-size: .75rem; color: #8e8e93; margin-top: 3px; line-height: 1.4; }
+
+.level-row { display: flex; gap: 6px; padding: 12px 14px; }
+.lvl { flex: 1; border: 2px solid #e5e5ea; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; background: #fafafa; -webkit-tap-highlight-color: transparent; user-select: none; }
+.lvl-n { display: block; font-size: 1.3rem; font-weight: 900; color: #333; }
+.lvl-t { display: block; font-size: .58rem; color: #aaa; margin-top: 3px; line-height: 1.3; }
+.lvl.sel { border-color: #7DBA00; background: rgba(125,186,0,.12); }
+.lvl.sel .lvl-n { color: #4a8c00; }
+
+.legend-toggle { display: block; text-align: center; font-size: .8rem; color: #0085A1; padding: 8px; cursor: pointer; }
+.legend { display: none; padding: 0 14px 12px; }
+.legend.open { display: block; }
+.legend li { font-size: .8rem; color: #555; margin-bottom: 6px; line-height: 1.4; padding-left: 8px; }
+
+.footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e5e5ea; padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+.footer-inner { max-width: 480px; margin: 0 auto; }
+.submit { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; background: #ccc; color: white; transition: background .3s; }
+.submit.ready-vor  { background: #7DBA00; }
+.submit.ready-nach { background: #FA9E0D; }
+
+.success { display: none; position: fixed; inset: 0; background: white; z-index: 999; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; }
+.success.show { display: flex; }
+.success-icon { font-size: 5rem; margin-bottom: 16px; }
+.success-title { font-size: 1.4rem; font-weight: 900; color: #7DBA00; margin-bottom: 8px; }
+.success-sub { color: #666; font-size: .95rem; line-height: 1.6; }
+.code-box { margin-top: 16px; background: #f2f2f7; border-radius: 10px; padding: 12px; font-size: .65rem; font-family: monospace; word-break: break-all; text-align: left; width: 100%; }
+.copy-btn { margin-top: 10px; width: 100%; padding: 12px; background: #0085A1; color: white; border: none; border-radius: 10px; font-size: .95rem; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div style="background:#f2f2f7">
+<div style="max-width:480px;margin:0 auto;background:#7DBA00" id="topHeader" class="header">
+  <h1>EPA-Einschätzung</h1>
+  <p id="headerSub">Selbsteinschätzung · KWB Goslar</p>
+</div>
+</div>
+
+<!-- Phase -->
+<div class="card">
+  <div style="font-size:.75rem;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Phase wählen</div>
+  <div class="phase-row">
+    <button class="phase-btn vor-active" id="btnVor" onclick="setPhase('vor')">🟢 Vor dem Training</button>
+    <button class="phase-btn" id="btnNach" onclick="setPhase('nach')">🟠 Nach dem Training</button>
+  </div>
+</div>
+
+<!-- Persönliche Daten -->
+<div class="card">
+  <div style="font-size:.75rem;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">Persönliche Angaben</div>
+  <div class="field"><label>Name, Vorname</label><input type="text" id="fName" placeholder="Mustermann, Max" autocomplete="name"></div>
+  <div class="field"><label>Geburtsdatum</label><input type="date" id="fGeb"></div>
+  <div class="field"><label>Jahre Berufserfahrung</label><input type="number" id="fBeruf" placeholder="z.B. 5" min="0" max="50"></div>
+  <div class="field"><label>Datum der Beurteilung</label><input type="date" id="fDatum"></div>
+  <div class="field" style="margin-bottom:0"><label>Thema der Fortbildung</label><input type="text" id="fThema" placeholder="z.B. Airway-Management"></div>
+</div>
+
+<!-- Progress -->
+<div class="progress">
+  <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:0"></div></div>
+  <div class="progress-text" id="pText">0 von 7 EPAs bewertet</div>
+</div>
+
+<!-- Level Legend -->
+<div class="card">
+  <span class="legend-toggle" onclick="toggleLegend()">▶ Level-Erklärung anzeigen</span>
+  <ul class="legend" id="legend">
+    <li><b>Level 1</b> – Diese Tätigkeit traue ich mir nicht zu.</li>
+    <li><b>Level 2</b> – Unter vollständiger direkter Supervision (Supervisor im Raum).</li>
+    <li><b>Level 3</b> – Unter räumlich entfernter Supervision mit direkter Erreichbarkeit.</li>
+    <li><b>Level 4</b> – Selbständig. Supervision ohne direkte Erreichbarkeit ausreichend.</li>
+    <li><b>Level 5</b> – Ich könnte weniger Erfahrene anleiten / als Supervisor fungieren.</li>
+  </ul>
+</div>
+
+<!-- EPA Cards (built by JS) -->
+<div id="epaContainer"></div>
+
+<div style="height:80px"></div>
+
+<div class="footer">
+  <div class="footer-inner">
+  <button class="submit" id="submitBtn" onclick="doSubmit()">Bitte alle 7 EPAs bewerten</button>
+  </div>
+</div>
+
+<div class="success" id="successScreen">
+  <div class="success-icon">✅</div>
+  <div class="success-title">Vielen Dank!</div>
+  <div class="success-sub" id="successMsg">Einschätzung gespeichert.</div>
+  <div class="code-box" id="codeBox" style="display:none"></div>
+  <button class="copy-btn" id="copyBtn" style="display:none" onclick="copyCode()">📋 Code kopieren</button>
+</div>
+
+<script>
+var EPAS = [
+  { n:1, name:'Logistik / Ressourcen / Sicherheit',
+    desc:'Erkennen und bewerten von Notfallsituationen und Gefahrensituationen als Grundlage einer effektiven und teamorientierten Einsatzplanung.' },
+  { n:2, name:'Standardisierte Operative Proceduren',
+    desc:'Auswahl und Anwendung rettungsdienstlicher Maßnahmen in entsprechende Algorithmen integrieren und die Patientenversorgung daran ausrichten.' },
+  { n:3, name:'Kommunikation, Dokumentation und Zusammenarbeit',
+    desc:'Kommunikation nach Standards, Dokumentation, Konflikt- und Fehlermanagement, interprofessionelle Zusammenarbeit.' },
+  { n:4, name:'Arbeitsdiagnose entwickeln',
+    desc:'Entwicklung einer Arbeitsdiagnose anhand fachgerecht erhobener und richtig interpretierter Daten und Befunde.' },
+  { n:5, name:'Heilkundliche Maßnahmen',
+    desc:'Übernahme traditionell ärztlicher Tätigkeiten im Rahmen medizinischer Standardverfahren (SOP) und erweiterter notfallmedizinischer Maßnahmen.' },
+  { n:6, name:'Recht',
+    desc:'Grundlagen staatlicher Ordnung, Rechtsgebiete, Rechtsstellung, Berufsrecht, Qualitätsmanagement, rechtssichere Aufklärung und Dokumentation.' },
+  { n:7, name:'Systemschwächen und Fehlerkultur',
+    desc:'Identifikation von Systemschwächen und -fehlern, Beitrag zu Sicherheits- und Verbesserungsverhalten.' }
+];
+var LBLS = ['Nicht möglich','Direkte Superv.','Entf. Superv.','Selbständig','Supervisor'];
+
+var phase  = 'vor';
+var vals   = {};
+var resCode = '';
+
+// URL params
+var params = new URLSearchParams(window.location.search);
+if(params.get('ph')) phase = params.get('ph');
+
+window.onload = function(){
+  document.getElementById('fDatum').value = new Date().toISOString().slice(0,10);
+  if(params.get('vn') || params.get('nn'))
+    document.getElementById('fName').value = (params.get('nn')||'') + (params.get('vn') ? ', '+params.get('vn') : '');
+  if(params.get('t')) document.getElementById('fThema').value = params.get('t');
+  if(params.get('d')) document.getElementById('fDatum').value  = params.get('d');
+  setPhase(phase);
+  buildEPAs();
+};
+
+function setPhase(p){
+  phase = p;
+  document.getElementById('btnVor').className  = 'phase-btn' + (p==='vor'  ? ' vor-active'  : '');
+  document.getElementById('btnNach').className = 'phase-btn' + (p==='nach' ? ' nach-active' : '');
+  document.getElementById('topHeader').style.background = p==='vor' ? '#7DBA00' : '#FA9E0D';
+  document.getElementById('headerSub').textContent = (p==='vor' ? 'Vor dem Training' : 'Nach dem Training') + ' · KWB Goslar';
+  updateSubmit();
+}
+
+function buildEPAs(){
+  var cont = document.getElementById('epaContainer');
+  cont.innerHTML = '';
+  for(var i=0; i<EPAS.length; i++){
+    var e = EPAS[i];
+    var card = document.createElement('div');
+    card.className = 'epa-card';
+    card.id = 'ecard'+e.n;
+
+    var title = document.createElement('div');
+    title.className = 'epa-title';
+    title.innerHTML = '<div class="epa-num">EPA '+e.n+'</div><div class="epa-name">'+e.name+'</div><div class="epa-desc">'+e.desc+'</div>';
+    card.appendChild(title);
+
+    var row = document.createElement('div');
+    row.className = 'level-row';
+    for(var l=1; l<=5; l++){
+      var btn = document.createElement('div');
+      btn.className = 'lvl';
+      btn.id = 'lv'+e.n+'_'+l;
+      btn.innerHTML = '<span class="lvl-n">'+l+'</span><span class="lvl-t">'+LBLS[l-1]+'</span>';
+      btn.setAttribute('data-epa', e.n);
+      btn.setAttribute('data-lvl', l);
+      btn.addEventListener('click', onLvlClick);
+      row.appendChild(btn);
+    }
+    card.appendChild(row);
+    cont.appendChild(card);
+  }
+}
+
+function onLvlClick(evt){
+  var btn  = evt.currentTarget;
+  var eNum = parseInt(btn.getAttribute('data-epa'));
+  var lNum = parseInt(btn.getAttribute('data-lvl'));
+  vals[eNum] = lNum;
+
+  // Clear row, set selected
+  var row = btn.parentNode;
+  var btns = row.querySelectorAll('.lvl');
+  for(var i=0; i<btns.length; i++) btns[i].className = 'lvl';
+  btn.className = 'lvl sel';
+
+  // Mark card done
+  var card = document.getElementById('ecard'+eNum);
+  if(card) card.className = 'epa-card done';
+
+  updateProgress();
+  updateSubmit();
+
+  // Scroll to next
+  var next = document.getElementById('ecard'+(eNum+1));
+  if(next) setTimeout(function(){ next.scrollIntoView({behavior:'smooth', block:'start'}); }, 250);
+}
+
+function updateProgress(){
+  var n = Object.keys(vals).length;
+  document.getElementById('pFill').style.width = Math.round(n/7*100)+'%';
+  document.getElementById('pText').textContent = n===7 ? '✅ Alle 7 EPAs bewertet!' : n+' von 7 EPAs bewertet';
+}
+
+function updateSubmit(){
+  var n   = Object.keys(vals).length;
+  var btn = document.getElementById('submitBtn');
+  if(n===7){
+    btn.className = 'submit ' + (phase==='vor' ? 'ready-vor' : 'ready-nach');
+    btn.textContent = '✓ Einschätzung absenden';
+  } else {
+    btn.className = 'submit';
+    btn.textContent = 'Bitte alle 7 EPAs bewerten ('+(7-n)+' fehlen)';
+  }
+}
+
+function toggleLegend(){
+  var l = document.getElementById('legend');
+  var t = document.querySelector('.legend-toggle');
+  var open = l.classList.toggle('open');
+  t.textContent = (open?'▼':'▶') + ' Level-Erklärung ' + (open?'ausblenden':'anzeigen');
+}
+
+function doSubmit(){
+  if(Object.keys(vals).length < 7){ alert('Bitte alle 7 EPAs bewerten!'); return; }
+  var name  = document.getElementById('fName').value.trim();
+  var datum = document.getElementById('fDatum').value;
+  if(!name){  alert('Bitte Name eingeben!');  return; }
+  if(!datum){ alert('Bitte Datum eingeben!'); return; }
+
+  var parts    = name.split(',');
+  var nachname = parts[0] ? parts[0].trim() : '';
+  var vorname  = parts[1] ? parts[1].trim() : '';
+
+  var payload = {
+    type:        'epa_result',
+    personId:    params.get('pid') || '',
+    vorname:     vorname,
+    nachname:    nachname,
+    geburt:      document.getElementById('fGeb').value,
+    berufsjahre: document.getElementById('fBeruf').value,
+    datum:       datum,
+    thema:       document.getElementById('fThema').value.trim(),
+    phase:       phase,
+    epas:        [1,2,3,4,5,6,7].map(function(i){ return vals[i]||null; }),
+    timestamp:   new Date().toISOString()
+  };
+
+  // 1. Save to localStorage queue
+  try{
+    var q = JSON.parse(localStorage.getItem('entrusted_queue')||'[]');
+    payload._saved = new Date().toISOString();
+    q.push(payload);
+    localStorage.setItem('entrusted_queue', JSON.stringify(q));
+  }catch(e){}
+
+  // 2. BroadcastChannel
+  try{
+    var bc = new BroadcastChannel('entrusted_epa');
+    bc.postMessage({type:'epa_result', data:payload});
+    bc.close();
+  }catch(e){}
+
+  // 3. postMessage
+  try{ if(window.opener) window.opener.postMessage({type:'epa_result',data:payload},'*'); }catch(e){}
+
+  // 4. Result code
+  resCode = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+
+  showSuccess();
+}
+
+function showSuccess(){
+  var s = document.getElementById('successScreen');
+  s.className = 'success show';
+  document.getElementById('successMsg').textContent =
+    'Deine Einschätzung wurde gespeichert und wird beim nächsten Öffnen des Tools automatisch importiert.';
+  document.getElementById('codeBox').style.display = 'block';
+  document.getElementById('codeBox').textContent   = resCode;
+  document.getElementById('copyBtn').style.display = 'block';
+}
+
+function copyCode(){
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(resCode).then(function(){
+      document.getElementById('copyBtn').textContent = '✅ Kopiert!';
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = resCode;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    document.getElementById('copyBtn').textContent = '✅ Kopiert!';
+  }
+}
+</script>
+</body>
+</html>
