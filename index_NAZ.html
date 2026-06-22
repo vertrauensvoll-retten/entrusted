@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPA-Auswertung | KWB Goslar</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --kwb-green: #6ab023; --kwb-green-dark: #4e8018; --kwb-green-light: #e8f5d3;
+    --kwb-blue: #1a5fa8; --kwb-blue-light: #d6eaff;
+    --kwb-gray: #3a3a3a; --kwb-gray-mid: #6b6b6b; --kwb-gray-light: #f5f5f5;
+    --kwb-border: #d0d0d0; --kwb-white: #ffffff;
+    --level1: #d94f4f; --level2: #e07d1a; --level3: #e8b800; --level4: #6ab023; --level5: #1a7ab5;
+    --radius: 6px; --shadow: 0 2px 8px rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; background: var(--kwb-gray-light); color: var(--kwb-gray); min-height: 100vh; }
+  header { background: var(--kwb-white); border-bottom: 3px solid var(--kwb-blue); padding: 10px 24px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow); }
+  .logo-kwb .kwb-top { font-size: 22px; font-weight: 900; color: var(--kwb-green); letter-spacing: 2px; line-height: 1; }
+  .logo-kwb .kwb-sub { font-size: 9px; color: var(--kwb-gray-mid); letter-spacing: 1px; text-transform: uppercase; }
+  .logo-divider { width: 2px; height: 36px; background: var(--kwb-border); margin: 0 12px; }
+  .app-title { font-size: 15px; font-weight: 700; color: var(--kwb-gray); line-height: 1.2; }
+  .app-title span { font-size: 11px; font-weight: 400; color: var(--kwb-gray-mid); display: block; }
+  nav { background: var(--kwb-white); border-bottom: 1px solid var(--kwb-border); display: flex; padding: 0 16px; flex-wrap: wrap; }
+  .tab-btn { padding: 11px 18px; border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--kwb-gray-mid); border-bottom: 3px solid transparent; margin-bottom: -1px; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--kwb-blue); }
+  .tab-btn.active { color: var(--kwb-blue); border-bottom-color: var(--kwb-blue); }
+  .content { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .card { background: var(--kwb-white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px; }
+  .card.coach-card { border-top: 3px solid var(--kwb-blue); }
+  .card-title { font-size: 15px; font-weight: 700; color: var(--kwb-gray); border-bottom: 2px solid var(--kwb-blue-light); padding-bottom: 10px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  .role-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 14px; background: var(--kwb-blue-light); color: var(--kwb-blue); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; position: relative; }
+  label { font-size: 12px; font-weight: 600; color: var(--kwb-gray-mid); text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type="text"], input[type="date"], input[type="number"], select, textarea {
+    border: 1px solid var(--kwb-border); border-radius: var(--radius); padding: 9px 12px;
+    font-size: 14px; color: var(--kwb-gray); background: var(--kwb-white); width: 100%; transition: border-color 0.15s; font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--kwb-blue); }
+  .epa-table-wrap { overflow-x: auto; }
+  .epa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .epa-table th { background: var(--kwb-blue); color: white; padding: 10px 8px; text-align: center; font-size: 11px; font-weight: 700; vertical-align: bottom; }
+  .epa-table th.epa-col { text-align: left; width: 200px; background: #1048a0; }
+  .epa-table th .level-num { display: block; font-size: 15px; margin-bottom: 3px; }
+  .epa-table th .level-desc { font-size: 10px; font-weight: 400; opacity: 0.9; line-height: 1.3; }
+  .epa-table th.note-col { width: 170px; }
+  .epa-table td { border-bottom: 1px solid var(--kwb-border); padding: 10px 6px; text-align: center; vertical-align: middle; }
+  .epa-table td.epa-name { text-align: left; font-weight: 600; font-size: 12px; padding-left: 12px; }
+  .epa-num { display: inline-block; background: var(--kwb-blue); color: white; font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 5px; margin-right: 5px; }
+  .epa-table tr:hover td { background: var(--kwb-blue-light); }
+  .epa-table td.note-cell { padding: 6px; }
+  .epa-table td.note-cell textarea { min-height: 54px; font-size: 12px; }
+  .level-radio { display: none; }
+  .level-label { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--kwb-border); cursor: pointer; font-size: 13px; font-weight: 700; color: var(--kwb-gray-mid); transition: all 0.15s; }
+  .level-label:hover { border-color: var(--kwb-blue); color: var(--kwb-blue); background: var(--kwb-blue-light); }
+  input[data-level="1"]:checked + .level-label { background: var(--level1); border-color: var(--level1); color: white; }
+  input[data-level="2"]:checked + .level-label { background: var(--level2); border-color: var(--level2); color: white; }
+  input[data-level="3"]:checked + .level-label { background: var(--level3); border-color: var(--level3); color: white; }
+  input[data-level="4"]:checked + .level-label { background: var(--level4); border-color: var(--level4); color: white; }
+  input[data-level="5"]:checked + .level-label { background: var(--level5); border-color: var(--level5); color: white; }
+  .btn-row { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+  .btn { padding: 10px 22px; border-radius: var(--radius); border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .btn-primary-blue { background: var(--kwb-blue); color: white; }
+  .btn-primary-blue:hover { background: #143e7a; }
+  .btn-secondary { background: var(--kwb-gray-light); color: var(--kwb-gray); border: 1px solid var(--kwb-border); }
+  .btn-secondary:hover { background: var(--kwb-border); }
+  .btn-danger { background: #fdecea; color: #c0392b; border: 1px solid #f5b7b1; }
+  .btn-danger:hover { background: #f5b7b1; }
+  .btn-skip { background: var(--kwb-gray-light); border: 1px solid var(--kwb-border); border-radius: var(--radius); color: var(--kwb-gray-mid); font-size: 13px; font-weight: 700; width: 28px; height: 28px; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-skip:hover { background: #fdecea; color: #c0392b; border-color: #f5b7b1; }
+  #toast { position: fixed; bottom: 30px; right: 30px; background: var(--kwb-blue); color: white; padding: 12px 22px; border-radius: var(--radius); font-weight: 600; font-size: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); opacity: 0; transition: opacity 0.3s; z-index: 1000; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  .filter-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-row .form-group { min-width: 150px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat-tile { background: var(--kwb-white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; text-align: center; border-top: 3px solid var(--kwb-green); }
+  .stat-tile.blue { border-top-color: var(--kwb-blue); }
+  .stat-tile .stat-val { font-size: 26px; font-weight: 900; color: var(--kwb-green-dark); line-height: 1; }
+  .stat-tile.blue .stat-val { color: var(--kwb-blue); }
+  .stat-tile .stat-lbl { font-size: 11px; color: var(--kwb-gray-mid); font-weight: 600; margin-top: 4px; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { background: var(--kwb-gray); color: white; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 700; }
+  .data-table td { padding: 8px 12px; border-bottom: 1px solid var(--kwb-border); vertical-align: middle; }
+  .data-table tr:nth-child(even) td { background: var(--kwb-gray-light); }
+  .lbadge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 11px; font-weight: 700; color: white; }
+  .lbadge-1 { background: var(--level1); } .lbadge-2 { background: var(--level2); } .lbadge-3 { background: var(--level3); }
+  .lbadge-4 { background: var(--level4); } .lbadge-5 { background: var(--level5); } .lbadge-0 { background: var(--kwb-border); color: var(--kwb-gray-mid); }
+  .type-badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 700; }
+  .type-vor { background: #d6eaff; color: #1a5fa8; } .type-nach { background: #e8f5d3; color: #3d7a0a; } .type-coach { background: #f0e6ff; color: #6a1ab5; }
+  .person-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .person-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--kwb-green); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: white; flex-shrink: 0; }
+  .person-meta h3 { font-size: 16px; } .person-meta p { font-size: 12px; color: var(--kwb-gray-mid); }
+  .timeline-entry { border-left: 3px solid var(--kwb-blue); padding: 10px 16px; margin-bottom: 10px; background: var(--kwb-blue-light); border-radius: 0 var(--radius) var(--radius) 0; }
+  .tl-date { font-size: 11px; font-weight: 700; color: var(--kwb-blue); margin-bottom: 4px; }
+  .tl-topic { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .epa-levels-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .epa-pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; background: var(--kwb-white); border: 1px solid var(--kwb-border); display: flex; align-items: center; gap: 4px; }
+  .coach-note-box { background: #f7f0ff; border-left: 3px solid #9b59b6; padding: 8px 12px; border-radius: 0 var(--radius) var(--radius) 0; font-size: 12px; margin-top: 8px; }
+  .note-label { font-size: 10px; font-weight: 700; color: #6a1ab5; margin-bottom: 4px; text-transform: uppercase; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--kwb-white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+  .chart-card h4 { font-size: 12px; font-weight: 700; color: var(--kwb-gray-mid); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  canvas { max-height: 220px; }
+  .empty-state { text-align: center; padding: 40px; color: var(--kwb-gray-mid); }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .name-sug { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--kwb-white); border: 1px solid var(--kwb-blue); border-top: none; border-radius: 0 0 var(--radius) var(--radius); box-shadow: var(--shadow); z-index: 100; max-height: 180px; overflow-y: auto; }
+  .sug-item { padding: 9px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--kwb-border); display: flex; justify-content: space-between; }
+  .sug-item:last-child { border-bottom: none; }
+  .sug-item:hover { background: var(--kwb-blue-light); }
+  .sug-meta { font-size: 11px; color: var(--kwb-gray-mid); }
+  #status-bar { background: var(--kwb-blue-light); border: 1px solid var(--kwb-blue); border-radius: var(--radius); padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--kwb-blue); margin-bottom: 16px; display: none; }
+  #status-bar.error { background: #fdecea; border-color: #f5b7b1; color: #c0392b; }
+  .section-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 6px; }
+  .sl-vor { background: #d6eaff; color: #1a5fa8; }
+  .sl-nach { background: var(--kwb-green-light); color: var(--kwb-green-dark); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-kwb">
+    <div class="kwb-top">KWB</div>
+    <div class="kwb-sub">Goslar · Rettungsdienst</div>
+  </div>
+  <div class="logo-divider"></div>
+  <div class="app-title">
+    EPA-Einschätzung · Coach & Auswertung
+    <span>Ebenen 2–5 · Coach-Eingabe, Gesamtauswertung, Profile, Grafiken</span>
+  </div>
+</header>
+
+<nav>
+  <button class="tab-btn active" onclick="switchTab('eb2')" id="tab-eb2">🎓 Ebene 2 · Eingabe Coach</button>
+  <button class="tab-btn" onclick="switchTab('eb3')" id="tab-eb3">📊 Ebene 3 · Gesamtauswertung</button>
+  <button class="tab-btn" onclick="switchTab('eb4')" id="tab-eb4">👤 Ebene 4 · Mitarbeiterprofil</button>
+  <button class="tab-btn" onclick="switchTab('eb5')" id="tab-eb5">📈 Ebene 5 · Grafiken</button>
+</nav>
+
+<div class="content">
+  <div id="status-bar"></div>
+
+  <!-- ====== EBENE 2: COACH EINGABE ====== -->
+  <div id="eb2" class="tab-panel active">
+    <div class="card coach-card">
+      <div class="role-badge">🎓 Coach-Einschätzung — während dem Training</div>
+      <div class="card-title">📋 EPA-Einschätzung Coach</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name des Mitarbeiters / der Mitarbeiterin</label>
+          <input type="text" id="c_name" placeholder="z.B. Mustermann, Max" autocomplete="off"
+            oninput="onNameInput(this.value)" onblur="hideSug()">
+          <div class="name-sug" id="c-name-sug"></div>
+        </div>
+        <div class="form-group">
+          <label>Geburtsdatum</label>
+          <input type="date" id="c_geburt">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name des Coaches</label>
+          <input type="text" id="c_coach" placeholder="z.B. Schulz, Andrea">
+        </div>
+        <div class="form-group">
+          <label>Jahre Berufserfahrung (MA)</label>
+          <input type="number" id="c_berufsj" min="0" max="60" placeholder="z.B. 5">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Datum der Beurteilung</label>
+          <input type="date" id="c_datum">
+        </div>
+        <div class="form-group">
+          <label>Thema der Fortbildung</label>
+          <input type="text" id="c_thema" placeholder="z.B. Reanimation Advanced">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Allgemeine Coach-Anmerkungen (Freitext)</label>
+        <textarea id="c_allg_note" placeholder="Gesamteindruck, besondere Beobachtungen, Empfehlungen…"></textarea>
+      </div>
+    </div>
+
+    <div class="card coach-card">
+      <div class="card-title">🎯 EPA-Level-Einschätzung Coach</div>
+      <p style="font-size:12px;color:var(--kwb-gray-mid);margin-bottom:16px;">
+        Nur beobachtete EPAs bewerten. Pro EPA kann ein Freitext-Kommentar hinterlegt werden.
+      </p>
+      <div class="epa-table-wrap">
+        <table class="epa-table">
+          <thead>
+            <tr>
+              <th class="epa-col">EPA</th>
+              <th><span class="level-num">1</span><span class="level-desc">Traue nicht zu</span></th>
+              <th><span class="level-num">2</span><span class="level-desc">Direkte Supervision</span></th>
+              <th><span class="level-num">3</span><span class="level-desc">Entfernte Supervision</span></th>
+              <th><span class="level-num">4</span><span class="level-desc">Verzögert + entfernt</span></th>
+              <th><span class="level-num">5</span><span class="level-desc">Supervisiert selbst</span></th>
+              <th class="note-col">Anmerkung</th>
+              <th style="width:36px;"></th>
+            </tr>
+          </thead>
+          <tbody id="epa-rows-coach"></tbody>
+        </table>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="clearCoachForm()">🗑 Formular leeren</button>
+        <button class="btn btn-primary-blue" onclick="saveCoachEntry()">💾 Coach-Einschätzung speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== EBENE 3: GESAMTAUSWERTUNG ====== -->
+  <div id="eb3" class="tab-panel">
+    <div class="filter-row">
+      <div class="form-group">
+        <label>Jahr</label>
+        <select id="filter-year" onchange="renderEb3()"><option value="">Alle Jahre</option></select>
+      </div>
+      <div class="form-group">
+        <label>Typ</label>
+        <select id="filter-typ" onchange="renderEb3()">
+          <option value="">Alle</option>
+          <option value="vor">nur VOR</option>
+          <option value="nach">nur NACH</option>
+          <option value="coach">nur COACH</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Thema</label>
+        <select id="filter-thema" onchange="renderEb3()"><option value="">Alle Themen</option></select>
+      </div>
+      <button class="btn btn-secondary" style="margin-bottom:0" onclick="exportCSV()">⬇ CSV Export</button>
+      <button class="btn btn-secondary" style="margin-bottom:0" onclick="loadAllData().then(()=>renderEb3())">🔄 Aktualisieren</button>
+    </div>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="card">
+      <div class="card-title">📋 Alle Einträge</div>
+      <div id="eb3-table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ====== EBENE 4: MITARBEITERPROFIL ====== -->
+  <div id="eb4" class="tab-panel">
+    <div class="filter-row">
+      <div class="form-group" style="min-width:220px;">
+        <label>Mitarbeiter:in wählen</label>
+        <select id="person-select" onchange="renderEb4()"><option value="">— auswählen —</option></select>
+      </div>
+      <button class="btn btn-secondary" style="margin-bottom:0" onclick="loadAllData().then(()=>refreshFilters()).then(()=>renderEb4())">🔄 Aktualisieren</button>
+    </div>
+    <div id="eb4-content">
+      <div class="empty-state"><div class="empty-icon">👤</div>Bitte eine Person auswählen.</div>
+    </div>
+  </div>
+
+  <!-- ====== EBENE 5: GRAFIKEN ====== -->
+  <div id="eb5" class="tab-panel">
+    <div class="filter-row">
+      <div class="form-group">
+        <label>Jahr</label>
+        <select id="chart-year" onchange="renderEb5()"><option value="">Alle</option></select>
+      </div>
+      <div class="form-group">
+        <label>Typ</label>
+        <select id="chart-typ" onchange="renderEb5()">
+          <option value="">Alle</option>
+          <option value="vor">nur VOR</option>
+          <option value="nach">nur NACH</option>
+          <option value="coach">nur COACH</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mitarbeiter:in</label>
+        <select id="chart-person" onchange="renderEb5()"><option value="">Alle</option></select>
+      </div>
+      <button class="btn btn-secondary" style="margin-bottom:0" onclick="loadAllData().then(()=>refreshFilters()).then(()=>renderEb5())">🔄 Aktualisieren</button>
+    </div>
+    <div class="chart-grid" id="chart-grid"></div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// KONFIGURATION — trage hier deinen Supabase anon public Key ein
+// ─────────────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://cdxavysijudoqerfujap.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5eUeJTWARL60XBmGWFydbg_eeS3uiFn';
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EPAS = [
+  { nr: 1, name: "Logistik / Ressourcen / Sicherheit" },
+  { nr: 2, name: "Standardisierte Operative Proceduren" },
+  { nr: 3, name: "Kommunikation, Dokumentation und Zusammenarbeit" },
+  { nr: 4, name: "Arbeitsdiagnose entwickeln" },
+  { nr: 5, name: "Heilkundliche Maßnahmen" },
+  { nr: 6, name: "Recht" },
+  { nr: 7, name: "Systemschwächen und Fehlerkultur" },
+];
+
+// ─── SUPABASE API ─────────────────────────────────────────────────────────────
+const SB_HEADERS = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+};
+
+async function sbInsert(entry) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/entries`, {
+    method: 'POST',
+    headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+    body: JSON.stringify(entry),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function sbGetAll() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/entries?select=*&order=datum.desc`, { headers: SB_HEADERS });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbDelete(id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/entries?id=eq.${id}`, {
+    method: 'DELETE', headers: SB_HEADERS,
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+// ─── DATEN CACHE ──────────────────────────────────────────────────────────────
+let _allEntries = [];
+let _nameCache  = [];
+
+async function loadAllData() {
+  try {
+    setStatus('⏳ Lade Daten…');
+    _allEntries = await sbGetAll();
+    // parse levels/notes from json if needed
+    _allEntries = _allEntries.map(e => ({
+      ...e,
+      levels: typeof e.levels === 'string' ? JSON.parse(e.levels) : (e.levels || {}),
+      notes:  typeof e.notes  === 'string' ? JSON.parse(e.notes)  : (e.notes  || {}),
+    }));
+    const map = {};
+    _allEntries.forEach(e => {
+      if (e.name && !map[e.name]) map[e.name] = { name: e.name, geburt: e.geburt || '', berufsj: e.berufsj || 0 };
+    });
+    _nameCache = Object.values(map).sort((a,b) => a.name.localeCompare(b.name));
+    clearStatus();
+  } catch(err) {
+    setStatus('❌ Verbindung fehlgeschlagen: ' + err.message, true);
+  }
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'eb3') renderEb3();
+  if (id === 'eb4') renderEb4();
+  if (id === 'eb5') renderEb5();
+}
+
+// ─── NAME AUTOCOMPLETE ────────────────────────────────────────────────────────
+function onNameInput(val) {
+  const box = document.getElementById('c-name-sug');
+  if (!val || val.length < 2) { box.style.display = 'none'; return; }
+  const q   = val.toLowerCase();
+  const hits = _nameCache.filter(p => p.name.toLowerCase().includes(q));
+  if (!hits.length) { box.style.display = 'none'; return; }
+  box.innerHTML = hits.map(p => `
+    <div class="sug-item" onmousedown="selectName('${p.name.replace(/'/g,"\\'")}','${p.geburt}',${p.berufsj})">
+      <span>${p.name}</span>
+      <span class="sug-meta">${p.geburt ? '* '+formatDate(p.geburt) : ''} ${p.berufsj ? '· '+p.berufsj+' J.' : ''}</span>
+    </div>`).join('');
+  box.style.display = 'block';
+}
+
+function selectName(name, geburt, berufsj) {
+  document.getElementById('c_name').value    = name;
+  if (geburt)  document.getElementById('c_geburt').value  = geburt;
+  if (berufsj) document.getElementById('c_berufsj').value = berufsj;
+  document.getElementById('c-name-sug').style.display = 'none';
+}
+function hideSug() { setTimeout(() => { document.getElementById('c-name-sug').style.display = 'none'; }, 150); }
+
+// ─── EPA TABELLE COACH ────────────────────────────────────────────────────────
+function buildCoachTable() {
+  const tbody = document.getElementById('epa-rows-coach');
+  tbody.innerHTML = '';
+  EPAS.forEach(epa => {
+    const tr = document.createElement('tr');
+    let cells = `<td class="epa-name"><span class="epa-num">${epa.nr}</span>${epa.name}</td>`;
+    for (let l = 1; l <= 5; l++) {
+      const uid = `c_epa${epa.nr}_l${l}`;
+      cells += `<td><input class="level-radio" type="radio" name="c_epa${epa.nr}" id="${uid}" value="${l}" data-level="${l}"><label class="level-label" for="${uid}">${l}</label></td>`;
+    }
+    cells += `<td class="note-cell"><textarea id="c_note_epa${epa.nr}" placeholder="Anmerkung…" rows="2"></textarea></td>`;
+    cells += `<td><button class="btn-skip" onclick="clearCoachEpa(${epa.nr})" title="Zurücksetzen">—</button></td>`;
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+}
+
+function clearCoachEpa(nr) {
+  document.querySelectorAll(`input[name="c_epa${nr}"]`).forEach(r => r.checked = false);
+  document.getElementById(`c_note_epa${nr}`).value = '';
+}
+
+// ─── COACH SPEICHERN ──────────────────────────────────────────────────────────
+async function saveCoachEntry() {
+  const name  = document.getElementById('c_name').value.trim();
+  const datum = document.getElementById('c_datum').value;
+  const thema = document.getElementById('c_thema').value.trim();
+  if (!name || !datum || !thema) { toast('❌ Bitte Name, Datum und Thema angeben.', false); return; }
+
+  const levels = {}, notes = {};
+  let anySet = false;
+  EPAS.forEach(epa => {
+    const sel = document.querySelector(`input[name="c_epa${epa.nr}"]:checked`);
+    if (sel) { levels[epa.nr] = parseInt(sel.value); anySet = true; }
+    const n = document.getElementById(`c_note_epa${epa.nr}`);
+    if (n && n.value.trim()) notes[epa.nr] = n.value.trim();
+  });
+  if (!anySet) { toast('❌ Bitte mindestens eine EPA einschätzen.', false); return; }
+
+  setStatus('⏳ Wird gespeichert…');
+  try {
+    await sbInsert({
+      name,
+      geburt:    document.getElementById('c_geburt').value || null,
+      berufsj:   parseInt(document.getElementById('c_berufsj').value) || 0,
+      datum, thema,
+      typ:       'coach',
+      levels,
+      notes,
+      coach:     document.getElementById('c_coach').value.trim() || null,
+      allg_note: document.getElementById('c_allg_note').value.trim() || null,
+      ts:        Date.now(),
+    });
+    toast('✅ Coach-Einschätzung gespeichert!');
+    clearStatus();
+    clearCoachForm();
+    await loadAllData();
+    refreshFilters();
+  } catch(e) {
+    setStatus('❌ Fehler beim Speichern: ' + e.message, true);
+    toast('❌ Speichern fehlgeschlagen.', false);
+  }
+}
+
+function clearCoachForm() {
+  ['c_name','c_coach','c_thema','c_allg_note'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  document.getElementById('c_geburt').value  = '';
+  document.getElementById('c_berufsj').value = '';
+  document.getElementById('c_datum').value   = new Date().toISOString().slice(0,10);
+  EPAS.forEach(epa => clearCoachEpa(epa.nr));
+}
+
+// ─── FILTER BEFÜLLEN ─────────────────────────────────────────────────────────
+function refreshFilters() {
+  const entries = _allEntries;
+  const years   = [...new Set(entries.map(e => e.datum?.slice(0,4)).filter(Boolean))].sort().reverse();
+  const themen  = [...new Set(entries.map(e => e.thema).filter(Boolean))].sort();
+  const persons = [...new Set(entries.map(e => e.name).filter(Boolean))].sort();
+
+  ['filter-year','chart-year'].forEach(id => {
+    const s = document.getElementById(id); const cur = s.value;
+    s.innerHTML = '<option value="">Alle Jahre</option>' + years.map(y=>`<option value="${y}" ${y===cur?'selected':''}>${y}</option>`).join('');
+  });
+  const ft = document.getElementById('filter-thema'); const curT = ft.value;
+  ft.innerHTML = '<option value="">Alle Themen</option>' + themen.map(t=>`<option value="${t}" ${t===curT?'selected':''}>${t}</option>`).join('');
+  ['person-select','chart-person'].forEach(id => {
+    const s = document.getElementById(id); const cur = s.value;
+    const empty = id==='person-select' ? '<option value="">— auswählen —</option>' : '<option value="">Alle</option>';
+    s.innerHTML = empty + persons.map(p=>`<option value="${p}" ${p===cur?'selected':''}>${p}</option>`).join('');
+  });
+}
+
+// ─── EBENE 3 ──────────────────────────────────────────────────────────────────
+function renderEb3() {
+  let entries = [..._allEntries];
+  const year  = document.getElementById('filter-year').value;
+  const typ   = document.getElementById('filter-typ').value;
+  const thema = document.getElementById('filter-thema').value;
+  if (year)  entries = entries.filter(e => e.datum?.startsWith(year));
+  if (typ)   entries = entries.filter(e => e.typ === typ);
+  if (thema) entries = entries.filter(e => e.thema === thema);
+
+  const coachE = entries.filter(e => e.typ === 'coach');
+  const maE    = entries.filter(e => e.typ !== 'coach');
+  const grid   = document.getElementById('stats-grid');
+  grid.innerHTML = `
+    <div class="stat-tile"><div class="stat-val">${entries.length}</div><div class="stat-lbl">Gesamt</div></div>
+    <div class="stat-tile"><div class="stat-val">${maE.filter(e=>e.typ==='vor').length}</div><div class="stat-lbl">MA · VOR</div></div>
+    <div class="stat-tile"><div class="stat-val">${maE.filter(e=>e.typ==='nach').length}</div><div class="stat-lbl">MA · NACH</div></div>
+    <div class="stat-tile blue"><div class="stat-val">${coachE.length}</div><div class="stat-lbl">COACH</div></div>
+    <div class="stat-tile"><div class="stat-val">${[...new Set(entries.map(e=>e.name))].length}</div><div class="stat-lbl">Mitarbeiter:innen</div></div>
+    <div class="stat-tile"><div class="stat-val">${calcAvgOverall(entries)}</div><div class="stat-lbl">Ø Gesamtlevel</div></div>
+  `;
+
+  const wrap = document.getElementById('eb3-table-wrap');
+  if (!entries.length) { wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>Keine Einträge gefunden.</div>'; return; }
+
+  let html = `<table class="data-table"><thead><tr>
+    <th>Name</th><th>Datum</th><th>Thema</th><th>Typ</th>
+    ${EPAS.map(e=>`<th>EPA ${e.nr}</th>`).join('')}
+    <th>Anmerkung</th><th></th>
+  </tr></thead><tbody>`;
+
+  entries.forEach(e => {
+    const tb = e.typ==='coach' ? 'type-coach' : e.typ==='vor' ? 'type-vor' : 'type-nach';
+    const tl = e.typ==='coach' ? 'COACH' : e.typ==='vor' ? 'VOR' : 'NACH';
+    const noteStr = [e.allg_note, ...Object.entries(e.notes||{}).map(([n,v])=>`EPA ${n}: ${v}`)].filter(Boolean).join(' | ');
+    html += `<tr>
+      <td><strong>${e.name}</strong>${e.coach?`<br><span style="font-size:10px;color:var(--kwb-gray-mid)">Coach: ${e.coach}</span>`:''}</td>
+      <td>${formatDate(e.datum)}</td><td>${e.thema}</td>
+      <td><span class="type-badge ${tb}">${tl}</span></td>
+      ${EPAS.map(epa=>`<td><span class="lbadge lbadge-${e.levels[epa.nr]||0}">${e.levels[epa.nr]||'—'}</span></td>`).join('')}
+      <td style="font-size:11px;color:var(--kwb-gray-mid);max-width:130px;">${noteStr||'—'}</td>
+      <td><button class="btn btn-danger" style="padding:4px 10px;font-size:11px;" onclick="delEntry(${e.id})">✕</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ─── EBENE 4 ──────────────────────────────────────────────────────────────────
+function renderEb4() {
+  const name = document.getElementById('person-select').value;
+  const cont = document.getElementById('eb4-content');
+  if (!name) { cont.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div>Bitte eine Person auswählen.</div>'; return; }
+
+  const entries  = _allEntries.filter(e => e.name === name).sort((a,b) => a.datum?.localeCompare(b.datum));
+  if (!entries.length) { cont.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>Keine Einträge.</div>'; return; }
+
+  const maE      = entries.filter(e => e.typ !== 'coach');
+  const coachE   = entries.filter(e => e.typ === 'coach');
+  const initials = name.split(',').map(p=>p.trim()[0]||'').join('').toUpperCase();
+  const years    = [...new Set(entries.map(e=>e.datum?.slice(0,4)))];
+
+  let html = `<div class="card">
+    <div class="person-header">
+      <div class="person-avatar">${initials}</div>
+      <div class="person-meta"><h3>${name}</h3>
+        <p>${entries[0].berufsj||0} J. Berufserf. · ${entries.length} Einschätzungen · ${years.join(', ')}</p>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-tile"><div class="stat-val">${entries.length}</div><div class="stat-lbl">Gesamt</div></div>
+      <div class="stat-tile"><div class="stat-val">${maE.filter(e=>e.typ==='vor').length}</div><div class="stat-lbl">VOR</div></div>
+      <div class="stat-tile"><div class="stat-val">${maE.filter(e=>e.typ==='nach').length}</div><div class="stat-lbl">NACH</div></div>
+      <div class="stat-tile blue"><div class="stat-val">${coachE.length}</div><div class="stat-lbl">COACH</div></div>
+      <div class="stat-tile"><div class="stat-val">${calcAvgOverall(entries)}</div><div class="stat-lbl">Ø Level</div></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">📅 Verlauf nach Veranstaltung</div>`;
+
+  const keys = [...new Set(entries.map(e=>`${e.datum?.slice(0,4)}|${e.thema}`))];
+  keys.forEach(tk => {
+    const [year, thema] = tk.split('|');
+    const rel   = entries.filter(e=>e.thema===thema&&e.datum?.startsWith(year));
+    const vor   = rel.find(e=>e.typ==='vor');
+    const nach  = rel.find(e=>e.typ==='nach');
+    const coach = rel.filter(e=>e.typ==='coach');
+
+    html += `<div class="timeline-entry">
+      <div class="tl-date">${year} · ${formatDate(rel[0].datum)}</div>
+      <div class="tl-topic">${thema}</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:${coach.length?'10px':'0'};">`;
+
+    if (vor) html += `<div><div class="section-lbl sl-vor">VOR (MA)</div><div class="epa-levels-row">
+      ${EPAS.map(epa=>vor.levels[epa.nr]?`<span class="epa-pill"><span class="lbadge lbadge-${vor.levels[epa.nr]}" style="width:18px;height:18px;font-size:10px;">${vor.levels[epa.nr]}</span>EPA ${epa.nr}</span>`:'').join('')}
+    </div></div>`;
+    if (nach) html += `<div><div class="section-lbl sl-nach">NACH (MA)</div><div class="epa-levels-row">
+      ${EPAS.map(epa=>nach.levels[epa.nr]?`<span class="epa-pill"><span class="lbadge lbadge-${nach.levels[epa.nr]}" style="width:18px;height:18px;font-size:10px;">${nach.levels[epa.nr]}</span>EPA ${epa.nr}</span>`:'').join('')}
+    </div></div>`;
+    html += '</div>';
+
+    coach.forEach(ce => {
+      html += `<div class="coach-note-box">
+        <div class="note-label">🎓 Coach${ce.coach?' · '+ce.coach:''}</div>
+        <div class="epa-levels-row" style="margin-bottom:${ce.allg_note||Object.keys(ce.notes||{}).length?'6px':'0'};">
+          ${EPAS.map(epa=>ce.levels[epa.nr]?`<span class="epa-pill" style="background:var(--kwb-blue-light);border-color:#b0cfef;">
+            <span class="lbadge lbadge-${ce.levels[epa.nr]}" style="width:18px;height:18px;font-size:10px;">${ce.levels[epa.nr]}</span>EPA ${epa.nr}
+            ${ce.notes&&ce.notes[epa.nr]?`<span title="${ce.notes[epa.nr]}" style="cursor:help;">💬</span>`:''}
+          </span>`:'').join('')}
+        </div>
+        ${ce.allg_note?`<div style="font-size:12px;font-style:italic;">"${ce.allg_note}"</div>`:''}
+        ${ce.notes&&Object.keys(ce.notes).length?Object.entries(ce.notes).map(([n,v])=>`<div style="font-size:11px;color:var(--kwb-gray-mid);margin-top:2px;"><strong>EPA ${n}:</strong> ${v}</div>`).join(''):''}
+      </div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += `<div class="card"><div class="card-title">📊 Ø Level pro EPA — Vergleich</div>
+    <table class="data-table"><thead><tr>
+      <th>EPA</th><th>Bezeichnung</th><th>Ø VOR (MA)</th><th>Ø NACH (MA)</th><th>Ø COACH</th><th>Verbesserung</th>
+    </tr></thead><tbody>`;
+  EPAS.forEach(epa => {
+    const vv = maE.filter(e=>e.typ==='vor').map(e=>e.levels[epa.nr]).filter(Boolean);
+    const nv = maE.filter(e=>e.typ==='nach').map(e=>e.levels[epa.nr]).filter(Boolean);
+    const cv = coachE.map(e=>e.levels[epa.nr]).filter(Boolean);
+    const aV = vv.length ? avg(vv).toFixed(1) : '—';
+    const aN = nv.length ? avg(nv).toFixed(1) : '—';
+    const aC = cv.length ? avg(cv).toFixed(1) : '—';
+    const d  = aV!=='—'&&aN!=='—' ? (parseFloat(aN)-parseFloat(aV)).toFixed(1) : '—';
+    const dc = d!=='—'?(parseFloat(d)>0?'color:var(--kwb-green-dark);font-weight:700;':parseFloat(d)<0?'color:#c0392b;font-weight:700;':''):'';
+    html += `<tr>
+      <td><span class="lbadge" style="background:var(--kwb-green)">${epa.nr}</span></td>
+      <td>${epa.name}</td><td>${aV}</td><td>${aN}</td>
+      <td><span style="color:var(--kwb-blue);font-weight:600;">${aC}</span></td>
+      <td style="${dc}">${d!=='—'?(parseFloat(d)>=0?'+':'')+d:d}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
+}
+
+// ─── EBENE 5 ──────────────────────────────────────────────────────────────────
+let chartInstances = {};
+
+function renderEb5() {
+  let entries = [..._allEntries];
+  const year   = document.getElementById('chart-year').value;
+  const typ    = document.getElementById('chart-typ').value;
+  const person = document.getElementById('chart-person').value;
+  if (year)   entries = entries.filter(e=>e.datum?.startsWith(year));
+  if (typ)    entries = entries.filter(e=>e.typ===typ);
+  if (person) entries = entries.filter(e=>e.name===person);
+
+  const grid = document.getElementById('chart-grid');
+  Object.values(chartInstances).forEach(c=>c.destroy());
+  chartInstances = {};
+
+  if (!entries.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📈</div>Keine Daten.</div>'; return; }
+
+  grid.innerHTML = `
+    <div class="chart-card" style="grid-column:1/-1"><h4>Ø Level pro EPA — alle gefilterten Einschätzungen</h4><canvas id="c1"></canvas></div>
+    <div class="chart-card"><h4>Level-Verteilung 1–5</h4><canvas id="c2"></canvas></div>
+    <div class="chart-card"><h4>Einschätzungen pro Jahr</h4><canvas id="c3"></canvas></div>
+    <div class="chart-card" style="grid-column:1/-1"><h4>Ø Level pro EPA — VOR · NACH · COACH Vergleich</h4><canvas id="c4"></canvas></div>
+  `;
+
+  const ap = EPAS.map(epa=>{ const v=entries.map(e=>e.levels[epa.nr]).filter(Boolean); return v.length?parseFloat(avg(v).toFixed(2)):0; });
+  chartInstances.c1 = new Chart(document.getElementById('c1'),{type:'bar',data:{labels:EPAS.map(e=>`EPA ${e.nr}`),datasets:[{label:'Ø Level',data:ap,backgroundColor:ap.map(v=>v>=4.5?'#1a7ab5':v>=3.5?'#6ab023':v>=2.5?'#e8b800':v>=1.5?'#e07d1a':'#d94f4f'),borderRadius:4}]},options:{scales:{y:{min:0,max:5}},plugins:{legend:{display:false}}}});
+
+  const lc=[0,0,0,0,0];
+  entries.forEach(e=>EPAS.forEach(epa=>{const l=e.levels[epa.nr];if(l>=1&&l<=5)lc[l-1]++;}));
+  chartInstances.c2 = new Chart(document.getElementById('c2'),{type:'doughnut',data:{labels:['L1','L2','L3','L4','L5'],datasets:[{data:lc,backgroundColor:['#d94f4f','#e07d1a','#e8b800','#6ab023','#1a7ab5']}]},options:{plugins:{legend:{position:'right'}}}});
+
+  const allY = [...new Set(_allEntries.map(e=>e.datum?.slice(0,4)).filter(Boolean))].sort();
+  const cpy  = allY.map(y=>_allEntries.filter(e=>e.datum?.startsWith(y)).length);
+  chartInstances.c3 = new Chart(document.getElementById('c3'),{type:'bar',data:{labels:allY,datasets:[{label:'Einschätzungen',data:cpy,backgroundColor:'#6ab023',borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+
+  const vorE=entries.filter(e=>e.typ==='vor'), nachE=entries.filter(e=>e.typ==='nach'), coachE=entries.filter(e=>e.typ==='coach');
+  const aDS=arr=>EPAS.map(epa=>{const v=arr.map(e=>e.levels[epa.nr]).filter(Boolean);return v.length?parseFloat(avg(v).toFixed(2)):0;});
+  chartInstances.c4 = new Chart(document.getElementById('c4'),{type:'bar',data:{labels:EPAS.map(e=>`EPA ${e.nr}`),datasets:[
+    {label:'VOR (MA)',data:aDS(vorE),backgroundColor:'#1a5fa8cc',borderRadius:4},
+    {label:'NACH (MA)',data:aDS(nachE),backgroundColor:'#6ab023cc',borderRadius:4},
+    {label:'COACH',data:aDS(coachE),backgroundColor:'#9b59b6cc',borderRadius:4},
+  ]},options:{scales:{y:{min:0,max:5}},plugins:{legend:{position:'top'}}}});
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function avg(arr) { return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function calcAvgOverall(entries) {
+  const vals = entries.flatMap(e=>Object.values(e.levels||{})).filter(Boolean);
+  return vals.length ? avg(vals).toFixed(1) : '—';
+}
+function formatDate(d) { if(!d)return''; const [y,m,dd]=d.split('-'); return `${dd}.${m}.${y}`; }
+
+async function delEntry(id) {
+  if (!confirm('Eintrag wirklich löschen?')) return;
+  try {
+    await sbDelete(id);
+    toast('🗑 Eintrag gelöscht.');
+    await loadAllData();
+    refreshFilters();
+    renderEb3();
+  } catch(e) { toast('❌ Löschen fehlgeschlagen.', false); }
+}
+
+async function exportCSV() {
+  const rows = [['ID','Name','Geburtsdatum','Berufsjahre','Datum','Thema','Typ','Coach','Allg.Anmerkung',...EPAS.map(e=>`EPA_${e.nr}`),...EPAS.map(e=>`EPA_${e.nr}_Note`)]];
+  _allEntries.forEach(e=>rows.push([e.id,e.name,e.geburt,e.berufsj,e.datum,e.thema,e.typ,e.coach||'',e.allg_note||'',...EPAS.map(epa=>e.levels[epa.nr]||''),...EPAS.map(epa=>(e.notes&&e.notes[epa.nr])||'')]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='EPA_Einschaetzungen.csv'; a.click();
+}
+
+function toast(msg, ok=true) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=ok?'var(--kwb-blue)':'#c0392b';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200);
+}
+function setStatus(msg,isError=false) {
+  const s=document.getElementById('status-bar');
+  s.textContent=msg; s.className=isError?'error':''; s.style.display='block';
+}
+function clearStatus() { document.getElementById('status-bar').style.display='none'; }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async () => {
+  buildCoachTable();
+  document.getElementById('c_datum').value = new Date().toISOString().slice(0,10);
+  await loadAllData();
+  refreshFilters();
+})();
+</script>
+</body>
+</html>
