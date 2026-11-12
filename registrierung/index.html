@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Teilnehmerregistrierung</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Registrierung">
+<meta name="theme-color" content="#c8102e">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#14213d; --muted:#5b6475; --line:#d6dae3; --bg:#f3f4f7; --card:#ffffff;
+    --accent:#c8102e; --accent-dark:#9e0c24; --ok:#1f7a4d; --disabled:#b9bec9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+  /* Seite fixieren: kein Scrollen, kein Gummiband-Effekt */
+  html,body{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
+  button{font:inherit;cursor:pointer}
+  .hidden{display:none !important}
+  .screen{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column}
+
+  /* ---------- Gemeinsamer Kopf ---------- */
+  .eyebrow{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .btn{border:none;border-radius:10px;padding:12px 18px;font-size:16px;font-weight:600;background:#e8eaf0;color:var(--ink)}
+  .btn.primary{background:var(--ink);color:#fff}
+  .btn.big{padding:18px 30px;font-size:20px;border-radius:14px}
+  .btn.red{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(200,16,46,.3)}
+  .btn.danger{background:#fde8eb;color:var(--accent-dark)}
+  .btn.danger.armed{background:var(--accent);color:#fff}
+  .row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+  .status{font-size:14px;color:var(--ok);min-height:18px;margin-top:10px}
+  .status.bad{color:var(--accent)}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:600}
+  .field input{width:100%;font-size:18px;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);-webkit-appearance:none;appearance:none;min-height:50px}
+  .field input:focus{outline:none;border-color:var(--ink)}
+  .field .pair{display:flex;align-items:center;gap:10px}
+  .field .pair span{color:var(--muted);flex:none}
+  .field .pair input{flex:1;min-width:0}
+  .dtRow{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  @media (max-width:760px){ .dtRow{grid-template-columns:1fr} }
+  .req{color:var(--accent)}
+
+  /* ---------- Startmaske ---------- */
+  #setupView{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:28px 28px 40px}
+  .setupInner{max-width:860px;margin:0 auto;width:100%}
+  .setupTitle{font-size:30px;font-weight:700;margin:6px 0 4px}
+  .setupSub{color:var(--muted);margin-bottom:20px}
+  .panel{background:#fff;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 1px 3px rgba(20,33,61,.08)}
+  .panel h2{font-size:18px;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .full{grid-column:1/-1}
+  .setupErr{background:#fde8eb;border:2px solid var(--accent);color:var(--accent-dark);font-weight:700;font-size:17px;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .field input.bad{border-color:var(--accent);background:#fff5f6}
+  .ver{color:#b0b6c2;font-size:12px;margin-right:auto}
+  .resumeBox{background:#eef6f1;border:1px solid #bfe0cd;border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+
+  /* ---------- Eintragungsansicht ---------- */
+  #signView{padding:20px 26px 16px;gap:14px;touch-action:none}
+  #signView input{touch-action:manipulation}
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+  .evTitle{font-size:26px;font-weight:700;line-height:1.15;margin-top:3px}
+  .evMeta{color:var(--muted);font-size:16px;margin-top:3px}
+  .counter{text-align:right;color:var(--muted);font-size:14px;white-space:nowrap}
+  .counter b{display:block;font-size:28px;color:var(--ink)}
+  .card{flex:1;min-height:0;background:var(--card);border-radius:18px;box-shadow:0 1px 3px rgba(20,33,61,.08),0 8px 24px rgba(20,33,61,.06);
+    padding:20px 22px;display:flex;flex-direction:column;gap:10px}
+  .label{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600}
+  .num{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .opt{color:var(--muted);font-weight:400;font-size:14px}
+  .twoCol{display:grid;grid-template-columns:1fr 1.3fr;gap:18px}
+  .seg{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .seg button{border:2px solid var(--line);background:#fbfbfd;color:var(--ink);border-radius:10px;padding:10px 16px;font-size:17px;font-weight:600;min-height:48px;touch-action:manipulation}
+  .seg button.sel{background:var(--ink);border-color:var(--ink);color:#fff}
+  #nameInput{width:100%;font-size:28px;padding:12px 16px;border:2px solid var(--line);border-radius:12px;outline:none;color:var(--ink);background:#fbfbfd;-webkit-appearance:none;appearance:none}
+  #nameInput:focus{border-color:var(--ink);background:#fff}
+  .sigWrap{position:relative;flex:1;min-height:170px;border:2px dashed var(--line);border-radius:12px;background:#fbfbfd;overflow:hidden;
+    touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .sigWrap.active{border-style:solid;border-color:var(--ink);background:#fff}
+  #sigCanvas{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:block;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:crosshair}
+  .baseline{position:absolute;left:6%;right:6%;bottom:26%;border-bottom:2px solid #c9ced8;pointer-events:none}
+  .baseline::before{content:"✕";position:absolute;left:-4px;bottom:4px;color:#aab0bd;font-size:22px}
+  .sigPlaceholder{position:absolute;left:0;right:0;top:36%;text-align:center;color:#a5abb8;font-size:20px;pointer-events:none}
+  .sigLabelRow{display:flex;justify-content:space-between;align-items:center}
+  .linkBtn{background:none;border:none;color:var(--muted);font-size:16px;padding:6px 4px;text-decoration:underline;touch-action:manipulation}
+  footer.bottom{display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .footLeft{max-width:58%}
+  .missing{font-size:14px;color:var(--accent);font-weight:600;min-height:18px;margin-bottom:4px}
+  .privacy{font-size:12px;color:var(--muted);line-height:1.4}
+  #nextBtn{background:var(--accent);color:#fff;border:none;border-radius:14px;padding:18px 28px;font-size:21px;font-weight:700;
+    display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(200,16,46,.3);touch-action:manipulation;flex:none}
+  #nextBtn:active{background:var(--accent-dark)}
+  #nextBtn:disabled{background:var(--disabled);box-shadow:none;cursor:not-allowed}
+  #nextBtn .arrow{font-size:25px}
+  #adminOpen{position:fixed;left:8px;bottom:4px;background:none;border:none;color:#c3c8d2;font-size:20px;padding:8px;z-index:5;touch-action:manipulation}
+
+  /* ---------- Overlays ---------- */
+  .overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(20,33,61,.55);display:flex;align-items:center;justify-content:center;z-index:30;padding:20px;touch-action:none}
+  .dialog{background:#fff;border-radius:18px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);touch-action:manipulation}
+  .thanks{background:var(--ok);color:#fff;text-align:center;padding:40px 48px;border-radius:22px;max-width:560px}
+  .thanks .check{font-size:64px;line-height:1}
+  .thanks h2{margin:10px 0 6px;font-size:30px}
+  .thanks p{margin:0;font-size:18px;opacity:.9}
+  .pinInput{width:100%;font-size:28px;letter-spacing:.4em;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;margin:14px 0}
+  .err{color:var(--accent);font-size:14px;min-height:18px}
+
+  /* ---------- Verwaltung ---------- */
+  #adminView{z-index:20;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:24px 28px 60px;display:block}
+  #adminView h1{font-size:26px;margin:0}
+  .adminHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .adminMeta{color:var(--muted);margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  td img{height:42px;max-width:200px;object-fit:contain;display:block}
+  .empty{color:var(--muted);padding:16px 0}
+  .warn{background:#fff6e0;border:1px solid #f1d38a;color:#7a5a00;border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+
+  #printView{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:14mm 14mm 16mm}
+    html,body{position:static !important;overflow:visible !important;height:auto !important;background:#fff !important}
+    .screen,.overlay,#adminOpen{display:none !important}
+    #printView{display:block !important;color:#14213d;font-size:10.5pt;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+    #printView h1{font-size:18pt;margin:0 0 2mm}
+    #printView h2{font-size:13pt;margin:0 0 4mm;font-weight:700}
+    .pInfo{width:100%;border-collapse:collapse;margin-bottom:6mm}
+    .pInfo td{padding:1mm 3mm 1mm 0;border:none;font-size:9.5pt;vertical-align:top}
+    .pInfo b{display:inline-block;min-width:24mm}
+    .pList{width:100%;border-collapse:collapse}
+    .pList thead{display:table-header-group}
+    .pList th{background:#eceef3 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:left;font-size:9pt;padding:2mm;border-bottom:0.3mm solid #c8ccd6}
+    .pList td{padding:1.5mm 2mm;border-bottom:0.2mm solid #c8ccd6;vertical-align:middle;height:15mm}
+    .pList tr{page-break-inside:avoid;break-inside:avoid}
+    .pList img{max-height:12mm;max-width:60mm;display:block}
+    .pSum{margin-top:6mm;page-break-inside:avoid;break-inside:avoid}
+    .pSign{display:flex;justify-content:space-between;margin-top:16mm;font-size:8.5pt}
+    .pSign div{width:44%;border-top:0.3mm solid #14213d;padding-top:1.5mm}
+    .pNote{margin-top:8mm;font-size:7.5pt;color:#6e7687}
+  }
+  @media (max-width:760px){
+    #signView{padding:14px}
+    .twoCol{grid-template-columns:1fr;gap:10px}
+    .evTitle{font-size:21px}
+    #nameInput{font-size:22px}
+    .privacy{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 1. Startmaske (Lehrgangsleitung) ============ -->
+<section id="setupView" class="screen">
+  <div class="setupInner">
+    <div class="eyebrow">Teilnehmerregistrierung</div>
+    <div class="setupTitle">Neue Fortbildung einrichten</div>
+    <div class="setupSub">Diese Angaben erscheinen oben auf der Eintragungsseite und im Kopf der Teilnehmerliste.</div>
+
+    <div class="resumeBox hidden" id="resumeBox">
+      <div><b>Laufende Liste vorhanden:</b> <span id="resumeInfo"></span></div>
+      <button class="btn primary" id="resumeBtn" type="button">Liste fortsetzen</button>
+    </div>
+
+    <div class="panel">
+      <h2>Fortbildung</h2>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+        <div class="field full"><label for="mTitle">Titel der Fortbildung <span class="req">*</span></label><input id="mTitle" placeholder="z. B. Pflichtfortbildung Notfallsanitäter*innen 2026"></div>
+        <div class="full dtRow">
+          <div class="field"><label>Zeitraum <span class="req">*</span> <span style="font-weight:400">(Enddatum nur bei mehrtägigen Fortbildungen)</span></label>
+            <div class="pair"><input id="mDateFrom" type="date"><span>bis</span><input id="mDateTo" type="date"></div></div>
+          <div class="field"><label>Uhrzeit</label>
+            <div class="pair"><input id="mTimeFrom" type="time" value="08:00"><span>bis</span><input id="mTimeTo" type="time" value="17:00"></div></div>
+        </div>
+        <div class="field"><label for="mPlace">Ort</label><input id="mPlace"></div>
+        <div class="field"><label for="mLead">Referent*in / Lehrgangsleitung</label><input id="mLead"></div>
+        <div class="field"><label for="mHours">Umfang (UE / Stunden)</label><input id="mHours" placeholder="z. B. 8 UE"></div>
+        <div class="field"><label for="mOrg">Veranstalter</label><input id="mOrg"></div>
+      </div>
+    </div>
+
+    <div class="setupErr hidden" id="setupErr"></div>
+    <div class="row">
+      <span class="ver">Version 5</span>
+      <button class="btn big red" id="startBtn" type="button">Liste beginnen →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. Eintragung (Teilnehmende) ============ -->
+<main id="signView" class="screen hidden">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Teilnehmerregistrierung</div>
+      <div class="evTitle" id="evTitle"></div>
+      <div class="evMeta" id="evMeta"></div>
+    </div>
+    <div class="counter">Eintrag<b id="counterNum">1</b></div>
+  </header>
+
+  <section class="card">
+    <div class="twoCol">
+      <div>
+        <div class="label"><span class="num">1</span> Geschlecht <span class="req">*</span></div>
+        <div class="seg" id="genderSeg">
+          <button type="button" data-v="w">weiblich</button>
+          <button type="button" data-v="m">männlich</button>
+          <button type="button" data-v="d">divers</button>
+        </div>
+      </div>
+      <div>
+        <div class="label"><span class="num">2</span> Titel <span class="opt">(optional)</span></div>
+        <div class="seg" id="titleSeg">
+          <button type="button" data-v="" class="sel">kein Titel</button>
+          <button type="button" data-v="Dr.">Dr.</button>
+          <button type="button" data-v="Dr. med.">Dr. med.</button>
+          <button type="button" data-v="Prof.">Prof.</button>
+          <button type="button" data-v="Prof. Dr.">Prof. Dr.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="label"><span class="num">3</span> Vor- und Nachname <span class="req">*</span></div>
+    <input id="nameInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" placeholder="z. B. Maria Mustermann">
+
+    <div class="sigLabelRow">
+      <div class="label"><span class="num">4</span> Unterschrift <span class="req">*</span></div>
+      <button class="linkBtn" id="clearSig" type="button">Unterschrift löschen</button>
+    </div>
+    <div class="sigWrap" id="sigWrap">
+      <div class="sigPlaceholder" id="sigPlaceholder">Hier mit dem Stift unterschreiben</div>
+      <div class="baseline"></div>
+      <canvas id="sigCanvas"></canvas>
+    </div>
+  </section>
+
+  <footer class="bottom">
+    <div class="footLeft">
+      <div class="missing" id="missing"></div>
+      <div class="privacy">Ihre Angaben dienen ausschließlich dem Nachweis der Teilnahme an dieser Fortbildung und werden nach Ablauf der Aufbewahrungsfrist gelöscht. Einträge anderer Teilnehmender sind hier nicht einsehbar.</div>
+    </div>
+    <button id="nextBtn" type="button" disabled>Fertig – nächste Person <span class="arrow">→</span></button>
+  </footer>
+</main>
+<button id="adminOpen" class="hidden" type="button" aria-label="Verwaltung">⚙︎</button>
+
+<!-- ============ Danke-Overlay ============ -->
+<div class="overlay hidden" id="thanksOverlay">
+  <div class="thanks">
+    <div class="check">✓</div>
+    <h2 id="thanksTitle">Vielen Dank!</h2>
+    <p>Sie sind eingetragen. Bitte geben Sie das Tablet weiter.</p>
+  </div>
+</div>
+
+<!-- ============ PIN-Abfrage ============ -->
+<div class="overlay hidden" id="pinOverlay">
+  <div class="dialog">
+    <h2 style="margin:0">Verwaltung</h2>
+    <div style="color:var(--muted);font-size:14px;margin-top:6px">Bitte PIN eingeben.</div>
+    <input class="pinInput" id="pinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <div class="err" id="pinErr"></div>
+    <div class="row">
+      <button class="btn" id="pinCancel" type="button">Abbrechen</button>
+      <button class="btn primary" id="pinOk" type="button">Öffnen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3. Verwaltung ============ -->
+<div id="adminView" class="screen hidden">
+  <div class="adminHead">
+    <h1>Verwaltung</h1>
+    <div class="row">
+      <button class="btn primary" id="sharePdf" type="button">PDF speichern / mailen</button>
+      <button class="btn primary" id="exportPdf" type="button">Drucken</button>
+      <button class="btn" id="adminClose" type="button">Zurück zur Eintragung</button>
+    </div>
+  </div>
+  <div class="adminMeta" id="adminMeta"></div>
+  <div class="warn hidden" id="storageWarn">Zwischenspeicher im Browser nicht verfügbar: Einträge gehen beim Schließen oder Neuladen der Seite verloren. Bitte die Liste vorher als PDF speichern.</div>
+  <div class="status" id="exportStatus"></div>
+
+  <div class="panel">
+    <h2>Teilnehmerliste (<span id="adminCount">0</span>)</h2>
+    <div id="tableHolder"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="grid" style="align-items:end">
+      <div><button class="btn" id="editMeta" type="button">Veranstaltungsdaten bearbeiten</button></div>
+      <div class="field"><label for="newPin">Neue PIN (4–8 Ziffern)</label><input id="newPin" type="password" inputmode="numeric" maxlength="8"></div>
+      <div><button class="btn" id="savePin" type="button">PIN ändern</button></div>
+      <div><button class="btn danger" id="resetAll" type="button">Neue Fortbildung – Liste leeren</button></div>
+    </div>
+    <div class="status" id="settingsStatus"></div>
+  </div>
+</div>
+
+<div id="printView"></div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "tn-registrierung-v2";
+  var DEFAULT_PIN = "1234";
+  var GENDER = {w:"weiblich", m:"männlich", d:"divers"};
+  var storageOk = true;
+
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return ("0"+n).slice(-2); }
+  function todayISO(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function deDate(iso){ if(!iso) return ""; var p=iso.split("-"); return p.length===3 ? p[2]+"."+p[1]+"."+p[0] : iso; }
+  function dateRange(m){
+    if(!m.dateFrom) return "";
+    if(!m.dateTo || m.dateTo === m.dateFrom) return deDate(m.dateFrom);
+    return deDate(m.dateFrom) + " – " + deDate(m.dateTo);
+  }
+  function timeRange(m){
+    if(m.timeFrom && m.timeTo) return m.timeFrom + " – " + m.timeTo + " Uhr";
+    if(m.timeFrom) return "ab " + m.timeFrom + " Uhr";
+    return "";
+  }
+
+  var state = { started:false, meta:{title:"", dateFrom:todayISO(), dateTo:"", timeFrom:"08:00", timeTo:"17:00", place:"", lead:"", hours:"", org:""}, entries:[], pin:DEFAULT_PIN };
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(KEY);
+      if(raw){ var s = JSON.parse(raw); if(s && s.meta && s.entries){ state = s; if(!state.pin) state.pin = DEFAULT_PIN; } }
+    }catch(e){ storageOk = false; }
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); storageOk = true; }
+    catch(e){ storageOk = false; }
+    $("storageWarn").classList.toggle("hidden", storageOk);
+  }
+
+  /* ---------- Ansichten ---------- */
+  function show(view){
+    ["setupView","signView","adminView"].forEach(function(v){ $(v).classList.toggle("hidden", v !== view); });
+    $("adminOpen").classList.toggle("hidden", view !== "signView");
+    if(view === "signView"){ renderHeader(); requestAnimationFrame(sizeCanvas); }
+  }
+
+  /* ---------- Startmaske ---------- */
+  var metaFields = {mTitle:"title", mDateFrom:"dateFrom", mDateTo:"dateTo", mTimeFrom:"timeFrom", mTimeTo:"timeTo", mPlace:"place", mLead:"lead", mHours:"hours", mOrg:"org"};
+  function fillSetup(){
+    Object.keys(metaFields).forEach(function(id){ $(id).value = state.meta[metaFields[id]] || ""; });
+    setupError("");
+    var hasList = state.started && state.entries.length > 0;
+    $("resumeBox").classList.toggle("hidden", !hasList);
+    if(hasList) $("resumeInfo").textContent = (state.meta.title || "Fortbildung") + " – " + state.entries.length + " Einträge";
+    $("startBtn").textContent = state.started ? "Speichern und zur Liste →" : "Liste beginnen →";
+  }
+  function setupError(msg, fieldIds){
+    var box = $("setupErr");
+    Object.keys(metaFields).forEach(function(id){ $(id).classList.remove("bad"); });
+    if(!msg){ box.classList.add("hidden"); box.textContent = ""; return; }
+    box.textContent = msg; box.classList.remove("hidden");
+    (fieldIds||[]).forEach(function(id){ $(id).classList.add("bad"); });
+    try{ box.scrollIntoView({block:"center", behavior:"smooth"}); }catch(e){ box.scrollIntoView(); }
+  }
+  function startList(){
+    try{
+      var ae = document.activeElement; if(ae && ae.blur) ae.blur();
+      var m = {};
+      Object.keys(metaFields).forEach(function(id){ m[metaFields[id]] = String($(id).value || "").trim(); });
+      if(!m.title) return setupError("Bitte den Titel der Fortbildung eintragen.", ["mTitle"]);
+      if(!m.dateFrom) return setupError("Bitte das Datum (bzw. den ersten Tag) der Fortbildung eintragen.", ["mDateFrom"]);
+      if(m.dateTo && m.dateTo < m.dateFrom) return setupError("Das Enddatum liegt vor dem Startdatum. Bitte korrigieren oder das Enddatum leer lassen.", ["mDateTo"]);
+      if(m.timeFrom && m.timeTo && m.timeTo <= m.timeFrom) return setupError("Die Endzeit liegt vor der Startzeit. Bitte die Uhrzeit prüfen.", ["mTimeFrom","mTimeTo"]);
+      setupError("");
+      state.meta = m; state.started = true; save();
+      resetForm(); show("signView");
+    }catch(err){
+      setupError("Technischer Fehler: " + (err && err.message ? err.message : err) + " – bitte diese Meldung an Claude weitergeben.");
+    }
+  }
+  $("startBtn").addEventListener("click", startList);
+  Object.keys(metaFields).forEach(function(id){ $(id).addEventListener("input", function(){ $(id).classList.remove("bad"); }); });
+  $("resumeBtn").addEventListener("click", function(){ resetForm(); show("signView"); });
+
+  function renderHeader(){
+    var m = state.meta;
+    $("evTitle").textContent = m.title || "Fortbildung";
+    $("evMeta").textContent = [dateRange(m), timeRange(m), m.place].filter(Boolean).join(" · ");
+    $("counterNum").textContent = state.entries.length + 1;
+  }
+
+  /* ---------- Auswahlfelder ---------- */
+  var gender = "", acadTitle = "";
+  function segment(id, cb){
+    var seg = $(id);
+    seg.addEventListener("click", function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      Array.prototype.forEach.call(seg.children, function(x){ x.classList.toggle("sel", x === b); });
+      cb(b.getAttribute("data-v")); updateState();
+    });
+  }
+  segment("genderSeg", function(v){ gender = v; });
+  segment("titleSeg", function(v){ acadTitle = v; });
+  function resetSeg(id, val){
+    Array.prototype.forEach.call($(id).children, function(x){ x.classList.toggle("sel", val !== null && x.getAttribute("data-v") === val); });
+  }
+
+  /* ---------- Unterschriftsfeld ---------- */
+  var canvas = $("sigCanvas"), wrap = $("sigWrap"), ctx = canvas.getContext("2d");
+  var strokes = [], current = null, dpr = 1, lastW = 0, lastH = 0;
+
+  function sizeCanvas(){
+    if(current) return;                       // nie während einer Strichs neu skalieren
+    var w = wrap.clientWidth, h = wrap.clientHeight;
+    if(!w || !h || (w === lastW && h === lastH && canvas.width)) return;
+    lastW = w; lastH = h;
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    redraw(ctx, strokes, 0, 0);
+  }
+  function widthFor(p){ return 1.4 + p*2.6; }
+  function drawStroke(c, s, ox, oy){
+    var pts = s.pts; if(!pts.length) return;
+    c.strokeStyle = "#0b1a3a"; c.fillStyle = "#0b1a3a"; c.lineCap = "round"; c.lineJoin = "round";
+    if(pts.length === 1){ c.beginPath(); c.arc(pts[0].x-ox, pts[0].y-oy, widthFor(pts[0].p)/2+0.4, 0, Math.PI*2); c.fill(); return; }
+    for(var i=1;i<pts.length;i++){
+      var a = pts[i-1], b = pts[i];
+      var mx0 = i>1 ? (pts[i-2].x+a.x)/2 : a.x, my0 = i>1 ? (pts[i-2].y+a.y)/2 : a.y;
+      c.lineWidth = widthFor((a.p+b.p)/2);
+      c.beginPath(); c.moveTo(mx0-ox,my0-oy); c.quadraticCurveTo(a.x-ox,a.y-oy,(a.x+b.x)/2-ox,(a.y+b.y)/2-oy); c.stroke();
+    }
+    var l = pts[pts.length-1], pl = pts[pts.length-2];
+    c.lineWidth = widthFor(l.p); c.beginPath(); c.moveTo((pl.x+l.x)/2-ox,(pl.y+l.y)/2-oy); c.lineTo(l.x-ox,l.y-oy); c.stroke();
+  }
+  function redraw(c, list, ox, oy){
+    c.save(); c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,c.canvas.width,c.canvas.height); c.restore();
+    for(var i=0;i<list.length;i++) drawStroke(c, list[i], ox, oy);
+  }
+  var rect = null;
+  function pos(e){
+    var p = (e.pointerType === "pen" && e.pressure > 0) ? e.pressure : 0.5;
+    return {x:e.clientX-rect.left, y:e.clientY-rect.top, p:p};
+  }
+  // Touch-Gesten auf der Fläche komplett unterbinden (verhindert Scrollen/Wackeln, v. a. auf dem iPad)
+  ["touchstart","touchmove","touchend","gesturestart","gesturechange"].forEach(function(t){
+    wrap.addEventListener(t, function(e){ if(e.cancelable) e.preventDefault(); }, {passive:false});
+  });
+  document.addEventListener("touchmove", function(e){
+    if(!$("signView").classList.contains("hidden") && e.cancelable) e.preventDefault();
+  }, {passive:false});
+
+  canvas.addEventListener("pointerdown", function(e){
+    e.preventDefault();
+    var ae = document.activeElement;
+    if(ae && ae !== document.body && ae.blur) ae.blur();   // Tastatur schließen
+    rect = canvas.getBoundingClientRect();
+    try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+    current = {pts:[pos(e)]}; strokes.push(current);
+    drawStroke(ctx, current, 0, 0); updateState();
+  });
+  canvas.addEventListener("pointermove", function(e){
+    if(!current) return; e.preventDefault();
+    var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
+    for(var i=0;i<evs.length;i++) current.pts.push(pos(evs[i]));
+    redraw(ctx, strokes, 0, 0);
+  });
+  function endStroke(){ if(current){ current = null; sizeCanvas(); } }
+  canvas.addEventListener("pointerup", endStroke);
+  canvas.addEventListener("pointercancel", endStroke);
+  canvas.addEventListener("lostpointercapture", endStroke);
+
+  function clearSig(){ strokes = []; current = null; redraw(ctx, strokes, 0, 0); updateState(); }
+  $("clearSig").addEventListener("click", clearSig);
+
+  function exportSignature(){
+    var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    strokes.forEach(function(s){ s.pts.forEach(function(p){
+      if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y; if(p.x>maxX)maxX=p.x; if(p.y>maxY)maxY=p.y; }); });
+    var pd = 8; minX-=pd; minY-=pd; maxX+=pd; maxY+=pd;
+    var w = Math.max(20, maxX-minX), h = Math.max(20, maxY-minY), scale = 2;
+    var off = document.createElement("canvas");
+    off.width = Math.round(w*scale); off.height = Math.round(h*scale);
+    var oc = off.getContext("2d"); oc.setTransform(scale,0,0,scale,0,0);
+    for(var i=0;i<strokes.length;i++) drawStroke(oc, strokes[i], minX, minY);
+    return {data: off.toDataURL("image/png"), w: off.width, h: off.height};
+  }
+
+  /* ---------- Prüfung & Weiter ---------- */
+  var nameInput = $("nameInput"), nextBtn = $("nextBtn");
+  function updateState(){
+    var hasSig = strokes.length > 0, hasName = nameInput.value.trim().length >= 2;
+    $("sigPlaceholder").classList.toggle("hidden", hasSig);
+    wrap.classList.toggle("active", hasSig);
+    var miss = [];
+    if(!gender) miss.push("Geschlecht");
+    if(!hasName) miss.push("Name");
+    if(!hasSig) miss.push("Unterschrift");
+    nextBtn.disabled = miss.length > 0;
+    $("missing").textContent = miss.length ? "Noch offen: " + miss.join(", ") : "";
+  }
+  nameInput.addEventListener("input", updateState);
+  nameInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); nameInput.blur(); } });
+  nameInput.addEventListener("blur", function(){ window.scrollTo(0,0); });
+
+  function resetForm(){
+    nameInput.value = ""; gender = ""; acadTitle = "";
+    resetSeg("genderSeg", null); resetSeg("titleSeg", "");
+    clearSig();
+  }
+
+  nextBtn.addEventListener("click", function(){
+    if(nextBtn.disabled) return;
+    var name = nameInput.value.trim().replace(/\s+/g," ");
+    var sig = exportSignature(), now = new Date();
+    state.entries.push({ gender:gender, title:acadTitle, name:name, sig:sig.data, sw:sig.w, sh:sig.h,
+      date: now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate()),
+      time: pad(now.getHours())+":"+pad(now.getMinutes()) });
+    save();
+    var parts = name.split(" "), last = parts[parts.length-1];
+    var greet = gender === "w" ? "Frau " + (acadTitle ? acadTitle+" " : "") + last
+              : gender === "m" ? "Herr " + (acadTitle ? acadTitle+" " : "") + last
+              : (acadTitle ? acadTitle+" " : "") + name;
+    $("thanksTitle").textContent = "Vielen Dank, " + greet + "!";
+    $("thanksOverlay").classList.remove("hidden");
+    nameInput.blur(); resetForm(); renderHeader();
+    setTimeout(function(){ $("thanksOverlay").classList.add("hidden"); }, 2000);
+  });
+  $("thanksOverlay").addEventListener("click", function(){ $("thanksOverlay").classList.add("hidden"); });
+
+  /* ---------- PIN / Verwaltung ---------- */
+  $("adminOpen").addEventListener("click", function(){
+    $("pinInput").value = ""; $("pinErr").textContent = "";
+    $("pinOverlay").classList.remove("hidden");
+    setTimeout(function(){ $("pinInput").focus(); }, 50);
+  });
+  $("pinCancel").addEventListener("click", function(){ $("pinOverlay").classList.add("hidden"); $("pinInput").blur(); });
+  function tryPin(){
+    if($("pinInput").value === state.pin){ $("pinInput").blur(); $("pinOverlay").classList.add("hidden"); openAdmin(); }
+    else { $("pinErr").textContent = "PIN nicht korrekt."; $("pinInput").value = ""; }
+  }
+  $("pinOk").addEventListener("click", tryPin);
+  $("pinInput").addEventListener("keydown", function(e){ if(e.key === "Enter") tryPin(); });
+
+  function openAdmin(){
+    var m = state.meta;
+    $("adminMeta").textContent = [m.title, dateRange(m), timeRange(m), m.place].filter(Boolean).join(" · ");
+    $("exportStatus").textContent = ""; $("settingsStatus").textContent = "";
+    disarm(); renderTable();
+    $("storageWarn").classList.toggle("hidden", storageOk);
+    show("adminView");
+  }
+  $("adminClose").addEventListener("click", function(){ show("signView"); });
+  $("editMeta").addEventListener("click", function(){ fillSetup(); $("resumeBox").classList.add("hidden"); show("setupView"); });
+
+  function renderTable(){
+    var holder = $("tableHolder"); holder.innerHTML = "";
+    $("adminCount").textContent = state.entries.length;
+    if(!state.entries.length){ holder.innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
+    var multiDay = state.meta.dateTo && state.meta.dateTo !== state.meta.dateFrom;
+    var t = document.createElement("table");
+    t.innerHTML = "<thead><tr><th>Nr.</th><th>Name</th><th>Geschl.</th><th>Unterschrift</th><th>" + (multiDay ? "Datum / Uhrzeit" : "Uhrzeit") + "</th><th></th></tr></thead>";
+    var tb = document.createElement("tbody");
+    state.entries.forEach(function(en, i){
+      var tr = document.createElement("tr");
+      function td(txt){ var c = document.createElement("td"); if(txt !== undefined) c.textContent = txt; tr.appendChild(c); return c; }
+      td(i+1); td((en.title ? en.title+" " : "") + en.name); td(GENDER[en.gender] || "");
+      var c3 = td(); var img = document.createElement("img"); img.src = en.sig; img.alt = "Unterschrift"; c3.appendChild(img);
+      td(multiDay ? deDate(en.date) + ", " + en.time : en.time);
+      var c5 = td();
+      var del = document.createElement("button"); del.className = "btn danger"; del.type = "button"; del.textContent = "Entfernen";
+      del.addEventListener("click", function(){
+        if(!del.classList.contains("armed")){ del.classList.add("armed"); del.textContent = "Wirklich entfernen?"; return; }
+        state.entries.splice(i,1); save(); renderTable();
+      });
+      c5.appendChild(del);
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); holder.appendChild(t);
+  }
+
+  $("savePin").addEventListener("click", function(){
+    var v = $("newPin").value.trim(), st = $("settingsStatus");
+    if(!/^\d{4,8}$/.test(v)){ st.textContent = "Die PIN muss aus 4 bis 8 Ziffern bestehen."; st.className = "status bad"; return; }
+    state.pin = v; save(); $("newPin").value = ""; $("newPin").blur();
+    st.textContent = "PIN geändert."; st.className = "status";
+  });
+
+  var resetBtn = $("resetAll");
+  function disarm(){ resetBtn.classList.remove("armed"); resetBtn.textContent = "Neue Fortbildung – Liste leeren"; }
+  resetBtn.addEventListener("click", function(){
+    if(!resetBtn.classList.contains("armed")){ resetBtn.classList.add("armed"); resetBtn.textContent = "Alle Einträge löschen? Erneut tippen"; return; }
+    var keep = {timeFrom: state.meta.timeFrom, timeTo: state.meta.timeTo, place: state.meta.place, lead: state.meta.lead, hours: state.meta.hours, org: state.meta.org};
+    state.entries = []; state.started = false;
+    state.meta = {title:"", dateFrom:todayISO(), dateTo:"", timeFrom:keep.timeFrom||"08:00", timeTo:keep.timeTo||"17:00", place:keep.place, lead:keep.lead, hours:keep.hours, org:keep.org};
+    save(); disarm(); fillSetup(); show("setupView");
+  });
+
+  /* ---------- PDF-Export ---------- */
+  var downloadsApi = null;
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      window.claude.use("downloads").then(function(d){ downloadsApi = d; }).catch(function(){ downloadsApi = null; });
+    }
+  }catch(e){}
+
+  function buildPdf(){
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({unit:"mm", format:"a4"});
+    var m = state.meta, L = 15, R = 195, W = R-L;
+    var multiDay = m.dateTo && m.dateTo !== m.dateFrom;
+    var cols = [{t:"Nr.", w:10},{t:"Name", w:64},{t:"Geschl.", w:18},{t:"Unterschrift", w:62},{t: multiDay ? "Datum/Zeit" : "Uhrzeit", w:26}];
+    var rowH = 17, y;
+
+    function tableHead(){
+      doc.setFillColor(236,238,243); doc.rect(L, y, W, 8, "F");
+      doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(20,33,61);
+      var x = L; cols.forEach(function(c){ doc.text(c.t, x+2, y+5.5); x += c.w; });
+      y += 8;
+    }
+    function header(first){
+      doc.setTextColor(20,33,61);
+      if(first){
+        doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text("Teilnehmerliste", L, 22);
+        doc.setFontSize(13); var tl = doc.splitTextToSize(m.title || "Fortbildung", W).slice(0,2); doc.text(tl, L, 30);
+        var yy = 30 + tl.length*5.5 + 3;
+        doc.setFontSize(10);
+        var info = [["Zeitraum", dateRange(m)], ["Uhrzeit", timeRange(m)], ["Ort", m.place],
+                    ["Referent*in", m.lead], ["Umfang", m.hours], ["Veranstalter", m.org]];
+        info.forEach(function(p, idx){
+          var x = L + (idx%3)*(W/3), y2 = yy + Math.floor(idx/3)*6;
+          doc.setFont("helvetica","bold"); doc.text(p[0]+":", x, y2);
+          doc.setFont("helvetica","normal"); doc.text(doc.splitTextToSize(p[1] || "–", W/3-25)[0], x+23, y2);
+        });
+        y = yy + 14;
+      } else {
+        doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(doc.splitTextToSize("Teilnehmerliste – " + (m.title || "Fortbildung") + " (" + dateRange(m) + ")", W)[0], L, 18);
+        y = 24;
+      }
+      tableHead();
+    }
+
+    header(true);
+    doc.setDrawColor(200,204,214); doc.setLineWidth(0.2);
+    state.entries.forEach(function(en, i){
+      if(y + rowH > 272){ doc.addPage(); header(false); doc.setDrawColor(200,204,214); doc.setLineWidth(0.2); }
+      doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(20,33,61);
+      var x = L, mid = y+rowH/2+1.5;
+      doc.text(String(i+1), x+2, mid); x += cols[0].w;
+      var full = (en.title ? en.title+" " : "") + en.name;
+      var nl = doc.splitTextToSize(full, cols[1].w-4).slice(0,2);
+      doc.text(nl, x+2, mid-(nl.length-1)*2.2); x += cols[1].w;
+      doc.text(en.gender || "", x+2, mid); x += cols[2].w;
+      var maxW = cols[3].w-4, maxH = rowH-3, ratio = en.sw/en.sh, iw = maxW, ih = iw/ratio;
+      if(ih > maxH){ ih = maxH; iw = ih*ratio; }
+      try{ doc.addImage(en.sig, "PNG", x+2, y+(rowH-ih)/2, iw, ih); }catch(e){}
+      x += cols[3].w;
+      if(multiDay){ doc.setFontSize(9.5); doc.text([deDate(en.date), en.time + " Uhr"], x+2, mid-2.2); }
+      else doc.text((en.time || "") + " Uhr", x+2, mid);
+      doc.line(L, y+rowH, R, y+rowH);
+      y += rowH;
+    });
+
+    if(y + 40 > 280){ doc.addPage(); header(false); }
+    y += 8;
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(20,33,61);
+    var cw = state.entries.filter(function(e){return e.gender==="w";}).length,
+        cm = state.entries.filter(function(e){return e.gender==="m";}).length,
+        cd = state.entries.filter(function(e){return e.gender==="d";}).length;
+    doc.text("Anzahl Teilnehmende: " + state.entries.length, L, y);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
+    doc.text("davon weiblich: " + cw + "   männlich: " + cm + "   divers: " + cd, L, y+5.5);
+    y += 22;
+    doc.setDrawColor(20,33,61); doc.setLineWidth(0.3);
+    doc.line(L, y, L+70, y); doc.line(R-80, y, R, y);
+    doc.setFontSize(9);
+    doc.text("Ort, Datum", L, y+4.5); doc.text("Unterschrift Referent*in / Lehrgangsleitung", R-80, y+4.5);
+
+    var n = doc.getNumberOfPages(), c = new Date();
+    var stamp = pad(c.getDate())+"."+pad(c.getMonth()+1)+"."+c.getFullYear()+", "+pad(c.getHours())+":"+pad(c.getMinutes())+" Uhr";
+    for(var p=1;p<=n;p++){
+      doc.setPage(p); doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(110,118,135);
+      doc.text("Geschlecht: w = weiblich, m = männlich, d = divers. Die Angaben dienen ausschließlich dem Nachweis der Teilnahme.", L, 287);
+      doc.text("Erstellt am " + stamp + "  ·  Seite " + p + " von " + n, R, 291, {align:"right"});
+    }
+    return doc;
+  }
+
+  function fileName(){
+    var t = (state.meta.title || "Fortbildung").replace(/[^\wäöüÄÖÜß\- ]+/g,"").trim().replace(/\s+/g,"_").slice(0,60);
+    return "Teilnehmerliste_" + (state.meta.dateFrom || todayISO()) + "_" + t + ".pdf";
+  }
+
+  function esc(t){ return String(t == null ? "" : t).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function buildPrintView(){
+    var m = state.meta, multiDay = m.dateTo && m.dateTo !== m.dateFrom;
+    var info = [["Zeitraum", dateRange(m)], ["Uhrzeit", timeRange(m)], ["Ort", m.place],
+                ["Referent*in", m.lead], ["Umfang", m.hours], ["Veranstalter", m.org]];
+    var h = '<h1>Teilnehmerliste</h1><h2>' + esc(m.title || "Fortbildung") + '</h2><table class="pInfo"><tr>';
+    info.forEach(function(p, i){ h += '<td><b>' + esc(p[0]) + ':</b> ' + esc(p[1] || "–") + '</td>' + (i === 2 ? '</tr><tr>' : ''); });
+    h += '</tr></table><table class="pList"><thead><tr><th style="width:7%">Nr.</th><th style="width:33%">Name</th><th style="width:9%">Geschl.</th><th style="width:36%">Unterschrift</th><th style="width:15%">' + (multiDay ? "Datum / Zeit" : "Uhrzeit") + '</th></tr></thead><tbody>';
+    state.entries.forEach(function(en, i){
+      h += '<tr><td>' + (i+1) + '</td><td>' + esc((en.title ? en.title + " " : "") + en.name) + '</td><td>' + esc(en.gender) + '</td><td><img src="' + en.sig + '" alt=""></td><td>' +
+           (multiDay ? esc(deDate(en.date)) + '<br>' : '') + esc(en.time) + ' Uhr</td></tr>';
+    });
+    function cnt(g){ return state.entries.filter(function(e){ return e.gender === g; }).length; }
+    var c = new Date();
+    h += '</tbody></table><div class="pSum"><b>Anzahl Teilnehmende: ' + state.entries.length + '</b><br>davon weiblich: ' + cnt("w") + ' · männlich: ' + cnt("m") + ' · divers: ' + cnt("d") +
+         '<div class="pSign"><div>Ort, Datum</div><div>Unterschrift Referent*in / Lehrgangsleitung</div></div>' +
+         '<div class="pNote">Geschlecht: w = weiblich, m = männlich, d = divers. Die Angaben dienen ausschließlich dem Nachweis der Teilnahme und werden nach Ablauf der Aufbewahrungsfrist gelöscht. Erstellt am ' +
+         pad(c.getDate()) + '.' + pad(c.getMonth()+1) + '.' + c.getFullYear() + ', ' + pad(c.getHours()) + ':' + pad(c.getMinutes()) + ' Uhr.</div></div>';
+    $("printView").innerHTML = h;
+  }
+
+  function msg(t, bad){ var st = $("exportStatus"); st.textContent = t; st.className = bad ? "status bad" : "status"; }
+
+  function printList(){
+    if(!state.entries.length) return msg("Noch keine Einträge vorhanden.", true);
+    buildPrintView();
+    var prevTitle = document.title;
+    document.title = fileName().replace(/\.pdf$/, "");
+    setTimeout(function(){
+      try{ window.print(); msg("Druckdialog geöffnet."); }
+      catch(e){ msg("Drucken ist hier nicht möglich.", true); }
+      setTimeout(function(){ document.title = prevTitle; }, 1500);
+    }, 150);
+  }
+  $("exportPdf").addEventListener("click", printList);
+
+  $("sharePdf").addEventListener("click", function(){
+    if(!state.entries.length) return msg("Noch keine Einträge vorhanden.", true);
+    if(!window.jspdf){
+      msg("Die PDF-Erstellung wurde nicht geladen (beim Öffnen der App war kein Internet). Bitte „Drucken“ nutzen und dort über das Teilen-Symbol als PDF sichern – oder die App mit Internet neu öffnen.", true);
+      return;
+    }
+    var blob;
+    try{ blob = buildPdf().output("blob"); }
+    catch(e){ return msg("PDF konnte nicht erstellt werden.", true); }
+    // Innerhalb von Claude
+    if(downloadsApi){
+      msg("PDF wird angeboten …");
+      downloadsApi.save({filename: fileName(), data: blob}).then(function(){ msg("PDF gespeichert bzw. zum Teilen übergeben."); })
+        .catch(function(err){ var c = err && err.code; msg(c === "declined" ? "Speichern abgebrochen." : "Speichern nicht möglich (" + (c || "Fehler") + ").", true); });
+      return;
+    }
+    // Eigenständig: Teilen-Menü des Geräts (In Dateien sichern, Mail …)
+    var file = null;
+    try{ file = new File([blob], fileName(), {type:"application/pdf"}); }catch(e){}
+    if(file && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title: fileName()}).then(function(){ msg("PDF übergeben."); })
+        .catch(function(err){ if(err && err.name === "AbortError") msg("Teilen abgebrochen."); else msg("Teilen nicht möglich – bitte „Drucken“ nutzen.", true); });
+      return;
+    }
+    // Rückfall: Download
+    try{
+      var url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = fileName(); document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      msg("PDF wurde heruntergeladen.");
+    }catch(e){ msg("Speichern nicht möglich – bitte „Drucken“ nutzen.", true); }
+  });
+
+  /* ---------- Start ---------- */
+  load();
+  if(state.started){ show("signView"); } else { fillSetup(); show("setupView"); }
+  resetForm();
+  window.addEventListener("resize", function(){ requestAnimationFrame(sizeCanvas); });
+  if(window.ResizeObserver){ new ResizeObserver(function(){ requestAnimationFrame(sizeCanvas); }).observe(wrap); }
+})();
+</script>
+</body>
+</html>
